@@ -95,6 +95,8 @@ class Bond(object):
         self.on_formed = on_formed
         self.is_shutdown = False
         self.sister_died_first = False
+        # Timeout for wait_until_formed
+        self.deadline = None
 
         # Callbacks must be called outside of the locks and after the
         # state machine finishes transitioning.
@@ -111,8 +113,9 @@ class Bond(object):
         self.disconnect_timeout = Constants.DEFAULT_DISCONNECT_TIMEOUT
         self.heartbeat_period = Constants.DEFAULT_HEARTBEAT_PERIOD
 
-        self.pub = rospy.Publisher(self.topic, Status)
-
+        # queue_size 1 : avoid having a client receive backed up, potentially
+        # late heartbearts, discussion@https://github.com/ros/bond_core/pull/10
+        self.pub = rospy.Publisher(self.topic, Status, queue_size=1)
 
     def get_connect_timeout(self):
         return self.__connect_timeout
@@ -192,6 +195,9 @@ class Bond(object):
                     self.break_bond()
                 self.pub.unregister()
                 self.condition.notify_all()
+                self.connect_timer.cancel()
+                if self.deadline:
+                    self.deadline.cancel()
 
     def _on_bond_status(self, msg):
         # Filters out messages from other bonds and messages from ourself
@@ -291,16 +297,20 @@ class Bond(object):
     # \param timeout Maximum duration to wait.  If None then this call will not timeout.
     # \return true iff the bond has been formed.
     def wait_until_formed(self, timeout = None):
-        deadline = timeout and Timeout(timeout).reset()
+        if self.deadline:
+            self.deadline.cancel()
+            self.deadline = None
+        if timeout:
+            self.deadline = Timeout(timeout).reset()
         with self.lock:
             while self.sm.getState().getName() == 'SM.WaitingForSister':
                 if rospy.is_shutdown():
                     break
-                if deadline and deadline.left() == rospy.Duration(0):
+                if self.deadline and self.deadline.left() == rospy.Duration(0):
                     break
                 wait_duration = 0.1
-                if deadline:
-                    wait_duration = min(wait_duration, deadline.left().to_sec())
+                if self.deadline:
+                    wait_duration = min(wait_duration, self.deadline.left().to_sec())
                 self.condition.wait(wait_duration)
             return self.sm.getState().getName() != 'SM.WaitingForSister'
 
@@ -309,16 +319,20 @@ class Bond(object):
     # \param timeout Maximum duration to wait.  If None then this call will not timeout.
     # \return true iff the bond has been broken, even if it has never been formed.
     def wait_until_broken(self, timeout = None):
-        deadline = timeout and Timeout(timeout).reset()
+        if self.deadline:
+            self.deadline.cancel()
+            self.deadline = None
+        if timeout:
+            self.deadline = Timeout(timeout).reset()
         with self.lock:
             while self.sm.getState().getName() != 'SM.Dead':
                 if rospy.is_shutdown():
                     break
-                if deadline and deadline.left() == rospy.Duration(0):
+                if self.deadline and self.deadline.left() == rospy.Duration(0):
                     break
                 wait_duration = 0.1
-                if deadline:
-                    wait_duration = min(wait_duration, deadline.left().to_sec())
+                if self.deadline:
+                    wait_duration = min(wait_duration, self.deadline.left().to_sec())
                 self.condition.wait(wait_duration)
             return self.sm.getState().getName() == 'SM.Dead'
 

@@ -1,6 +1,6 @@
 <package>
   <name>bond</name>
-  <version>1.7.16</version>
+  <version>1.7.17</version>
   <description>
     A bond allows two processes, A and B, to know when the other has
     terminated, either cleanly or by crashing.  The bond remains
@@ -8,7 +8,7 @@
     heartbeat times out.
   </description>
   <author>Stuart Glaser</author>
-  <maintainer email="esteve@osrfoundation.org">Esteve Fernandez</maintainer>
+  <maintainer email="mikael@osrfoundation.org">Mikael Arguedas</maintainer>
   <license>BSD</license>
   <url type="website">http://www.ros.org/wiki/bond</url>
   <url type="bugtracker">https://github.com/ros/bond_core/issues</url>
