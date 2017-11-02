@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef BONDCPP_TIMEOUT_H
-#define BONDCPP_TIMEOUT_H
+#ifndef BONDCPP__TIMEOUT_H_
+#define BONDCPP__TIMEOUT_H_
 
 #include <ros/ros.h>
 
@@ -37,8 +37,12 @@ namespace bond {
 class Timeout
 {
 public:
-  Timeout(const ros::Duration &d, boost::function<void(void)> on_timeout = boost::function<void(void)>());
-  Timeout(const ros::WallDuration &d, boost::function<void(void)> on_timeout = boost::function<void(void)>());
+  Timeout(
+    const ros::Duration &d,
+    boost::function<void(void)> on_timeout = boost::function<void(void)>());
+  Timeout(
+    const ros::WallDuration &d,
+    boost::function<void(void)> on_timeout = boost::function<void(void)>());
   ~Timeout();
 
   // Undefined what these do to a running timeout
@@ -51,15 +55,15 @@ public:
 
 private:
   ros::NodeHandle nh_;
-  ros::WallTimer timer_;
-  ros::WallTime deadline_;
+  ros::SteadyTimer timer_;
+  ros::SteadyTime deadline_;
   ros::WallDuration duration_;
   boost::function<void(void)> on_timeout_;
 
-  void timerCallback(const ros::WallTimerEvent &e);
+  void timerCallback(const ros::SteadyTimerEvent &e);
 };
 
 
-} // namespace
+}  // namespace bond
 
-#endif
+#endif  // BONDCPP__TIMEOUT_H_

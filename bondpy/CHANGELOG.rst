@@ -2,6 +2,19 @@
 Changelog for package bondpy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.8.1 (2017-10-27)
+------------------
+* fix package.xml to comply with schema (`#30 <https://github.com/ros/bond_core/issues/30>`_)
+* Contributors: Mikael Arguedas
+
+1.8.0 (2017-07-27)
+------------------
+* switch to package format 2 (`#27 <https://github.com/ros/bond_core/issues/27>`_)
+* Closer to pep8 compliance (`#25 <https://github.com/ros/bond_core/issues/25>`_)
+* Python3 compatibility (`#24 <https://github.com/ros/bond_core/issues/24>`_)
+* Fixes problem with bondpy not exiting with the node (`#21 <https://github.com/ros/bond_core/issues/21>`_)
+* Contributors: Aaron Miller, Mikael Arguedas
+
 1.7.19 (2017-03-27)
 -------------------
 

@@ -29,6 +29,7 @@
 # Author: Stuart Glaser
 
 # This is largely copied from bondpy, with hooks that "break" it for testing purposes.
+from __future__ import print_function
 
 import threading
 import time
@@ -36,13 +37,14 @@ import uuid
 
 import roslib; roslib.load_manifest('test_bond')
 import rospy
-from bond.msg import *
-from test_bond.srv import *
+from bond.msg import Constants, Status
+from test_bond.srv import TestBond, TestBondResponse
 
 import atexit
 atexit.register(rospy.signal_shutdown, 'exit')
 
 import BondSM_sm
+
 
 class Timeout:
     def __init__(self, duration, on_timeout=None):
@@ -82,13 +84,16 @@ class BondTester:
         self.death_started = None
 
         self.sm = BondSM_sm.BondSM_sm(self)
-        #self.sm.setDebugFlag(True)
+        # self.sm.setDebugFlag(True)
         self.lock = threading.RLock()
         self.condition = threading.Condition(self.lock)
 
-        self.connect_timeout = Timeout(rospy.Duration(Constants.DEFAULT_CONNECT_TIMEOUT), self._on_connect_timeout)
-        self.heartbeat_timeout = Timeout(rospy.Duration(Constants.DEFAULT_HEARTBEAT_TIMEOUT), self._on_heartbeat_timeout)
-        self.disconnect_timeout = Timeout(rospy.Duration(Constants.DEFAULT_DISCONNECT_TIMEOUT), self._on_disconnect_timeout)
+        self.connect_timeout = Timeout(
+            rospy.Duration(Constants.DEFAULT_CONNECT_TIMEOUT), self._on_connect_timeout)
+        self.heartbeat_timeout = Timeout(
+            rospy.Duration(Constants.DEFAULT_HEARTBEAT_TIMEOUT), self._on_heartbeat_timeout)
+        self.disconnect_timeout = Timeout(
+            rospy.Duration(Constants.DEFAULT_DISCONNECT_TIMEOUT), self._on_disconnect_timeout)
 
         self.connect_timeout.reset()
 
@@ -107,11 +112,13 @@ class BondTester:
     def _on_connect_timeout(self):
         with self.lock:
             self.sm.ConnectTimeout()
+
     def _on_heartbeat_timeout(self):
         if self.req.inhibit_death:
             return
         with self.lock:
             self.sm.HeartbeatTimeout()
+
     def _on_disconnect_timeout(self):
         with self.lock:
             self.sm.DisconnectTimeout()
@@ -124,12 +131,12 @@ class BondTester:
             with self.lock:
                 self.is_shutdown = True
                 if self.sm.getState().getName() != 'SM.Dead':
-                    print "I'm not dead yet:", self.id, " in ", self.sm.getState().getName()
+                    print("I'm not dead yet:%s in %s" % (self.id, self.sm.getState().getName()))
                     self.die()
                 self.sub.unregister()
                 self.pub.unregister()
                 self.condition.notify_all()
-                print "Unregistered"
+                print("Unregistered")
 
     def _on_bond_status(self, msg):
         # Filters out messages from other bonds and messages from ourselves
@@ -147,7 +154,6 @@ class BondTester:
                     # Immediate ack for sister's death notification
                     if self.sister_died_first:
                         self._publish(False)
-
 
     def _publish(self, active):
         msg = Status()
@@ -167,7 +173,8 @@ class BondTester:
 
         with self.lock:
             # Publishing ALIVE
-            while not self.is_shutdown and self.sm.getState().getName() in ['SM.WaitingForSister', 'SM.Alive']:
+            while not self.is_shutdown and self.sm.getState().getName() in [
+                    'SM.WaitingForSister', 'SM.Alive']:
                 self._publish(True)
                 self.condition.wait(Constants.DEFAULT_HEARTBEAT_PERIOD)
 
@@ -175,7 +182,6 @@ class BondTester:
             while not self.is_shutdown and self.sm.getState().getName() == 'SM.AwaitSisterDeath':
                 self._publish(False)
                 self.condition.wait(Constants.DEAD_PUBLISH_PERIOD)
-
 
     def Connected(self):
         self.connect_timeout.cancel()
@@ -202,7 +208,7 @@ class BondTester:
         if not self.death_started:
             self.death_started = rospy.Time.now()
 
-    def wait_for_life(self, timeout = None):
+    def wait_for_life(self, timeout=None):
         if self.deadline:
             self.deadline.cancel()
             self.deadline = None
@@ -210,12 +216,12 @@ class BondTester:
             self.deadline = Timeout(timeout).reset()
         with self.lock:
             while self.sm.getState().getName() == 'SM.WaitingForSister':
-                if deadline and deadline.left() == rospy.Duration(0):
+                if self.deadline and self.deadline.left() == rospy.Duration(0):
                     break
-                self.condition.wait(deadline and deadline.left().to_sec())
+                self.condition.wait(self.deadline and self.deadline.left().to_sec())
             return self.sm.getState().getName() != 'SM.WaitingForSister'
 
-    def wait_for_death(self, timeout = None):
+    def wait_for_death(self, timeout=None):
         if self.deadline:
             self.deadline.cancel()
             self.deadline = None
@@ -223,9 +229,9 @@ class BondTester:
             self.deadline = Timeout(timeout).reset()
         with self.lock:
             while self.sm.getState().getName() != 'SM.Dead':
-                if deadline and deadline.left() == rospy.Duration(0):
+                if self.deadline and self.deadline.left() == rospy.Duration(0):
                     break
-                self.condition.wait(deadline and deadline.left().to_sec())
+                self.condition.wait(self.deadline and self.deadline.left().to_sec())
             return self.sm.getState().getName() == 'SM.Dead'
 
     def is_dead(self):
@@ -238,7 +244,8 @@ class BondTester:
             self._publish(False)
 
     def __repr__(self):
-        return "[Bond %s, Instance %s (%s)]" % (self.id, self.instance_id, self.sm.getState().getName())
+        return "[Bond %s, Instance %s (%s)]" % (
+            self.id, self.instance_id, self.sm.getState().getName())
 
 
 class Tester:
@@ -247,16 +254,19 @@ class Tester:
         self.service = rospy.Service('test_bond', TestBond, self._test_bond)
 
     def _test_bond(self, req):
-        print "TEST"
+        print("TEST")
         if self.bond_tester:
             self.bond_tester.shutdown()
         self.bond_tester = BondTester(req)
-        print "Test bond instance id: %s" % self.bond_tester.instance_id
+        print("Test bond instance id: %s" % self.bond_tester.instance_id)
         return TestBondResponse()
+
 
 def main():
     rospy.init_node('bond_tester', anonymous=True, disable_signals=True)
-    tester = Tester()
+    tester = Tester()  # noqa
     rospy.spin()
 
-if __name__ == '__main__': main()
+
+if __name__ == '__main__':
+    main()

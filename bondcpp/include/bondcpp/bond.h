@@ -29,8 +29,8 @@
 
 /** \author Stuart Glaser */
 
-#ifndef BONDCPP_BOND_H
-#define BONDCPP_BOND_H
+#ifndef BONDCPP__BOND_H_
+#define BONDCPP__BOND_H_
 
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread/mutex.hpp>
@@ -42,6 +42,9 @@
 #include <bond/Constants.h>
 #include <bond/Status.h>
 #include "BondSM_sm.h"
+
+#include <string>
+#include <vector>
 
 namespace bond {
 
@@ -164,7 +167,7 @@ private:
 
   ros::Subscriber sub_;
   ros::Publisher pub_;
-  ros::WallTimer publishingTimer_;
+  ros::SteadyTimer publishingTimer_;
 
   void onConnectTimeout();
   void onHeartbeatTimeout();
@@ -172,14 +175,14 @@ private:
 
   void bondStatusCB(const bond::Status::ConstPtr &msg);
 
-  void doPublishing(const ros::WallTimerEvent &e);
+  void doPublishing(const ros::SteadyTimerEvent &e);
   void publishStatus(bool active);
 
   std::vector<boost::function<void(void)> > pending_callbacks_;
   void flushPendingCallbacks();
 };
 
-}// namespace
+}  // namespace bond
 
 
 // Internal use only
@@ -196,4 +199,4 @@ private:
   bond::Bond *b;
 };
 
-#endif
+#endif  // BONDCPP__BOND_H_

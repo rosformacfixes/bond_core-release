@@ -27,20 +27,23 @@
 
 ## \author Stuart Glaser
 
-import sys
 import threading
 import time
 import uuid
 
 import rospy
-from bond.msg import *
 
 import BondSM_sm
+
+from bond.msg import Constants, Status
+
 
 def as_ros_duration(d):
     if not isinstance(d, rospy.Duration):
         return rospy.Duration.from_sec(d)
     return d
+
+
 def as_float_duration(d):
     if isinstance(d, rospy.Duration):
         return d.to_sec()
@@ -52,12 +55,14 @@ class Timeout:
     def __init__(self, duration, on_timeout=None):
         self.duration = duration
         self.timer = threading.Timer(0, self._on_timer)
+        self.timer.daemon = True
         self.deadline = time.time()
         self.on_timeout = on_timeout
 
     def reset(self):
         self.timer.cancel()
         self.timer = threading.Timer(self.duration.to_sec(), self._on_timer)
+        self.timer.daemon = True
         self.timer.start()
         self.deadline = time.time() + self.duration.to_sec()
         return self
@@ -71,6 +76,7 @@ class Timeout:
     def _on_timer(self):
         if self.on_timeout:
             self.on_timeout()
+
 
 ## \brief Forms a bond to monitor another process.
 #
@@ -103,7 +109,7 @@ class Bond(object):
         self.pending_callbacks = []
 
         self.sm = BondSM_sm.BondSM_sm(self)
-        #self.sm.setDebugFlag(True)
+        # self.sm.setDebugFlag(True)
         self.lock = threading.RLock()
         self.condition = threading.Condition(self.lock)
 
@@ -119,6 +125,7 @@ class Bond(object):
 
     def get_connect_timeout(self):
         return self.__connect_timeout
+
     def set_connect_timeout(self, dur):
         assert not self.__started
         self.__connect_timeout = dur
@@ -127,6 +134,7 @@ class Bond(object):
 
     def get_heartbeat_timeout(self):
         return self.__heartbeat_timeout
+
     def set_heartbeat_timeout(self, dur):
         assert not self.__started
         self.__heartbeat_timeout = dur
@@ -135,6 +143,7 @@ class Bond(object):
 
     def get_disconnect_timeout(self):
         return self.__disconnect_timeout
+
     def set_disconnect_timeout(self, dur):
         assert not self.__started
         self.__disconnect_timeout = dur
@@ -143,11 +152,11 @@ class Bond(object):
 
     def get_heartbeat_period(self):
         return self.__heartbeat_period
+
     def set_heartbeat_period(self, per):
         assert not self.__started
         self.__heartbeat_period = as_float_duration(per)
     heartbeat_period = property(get_heartbeat_period, set_heartbeat_period)
-
 
     ## \brief Starts the bond and connects to the sister process.
     def start(self):
@@ -160,7 +169,6 @@ class Bond(object):
             self.thread.start()
             self.__started = True
 
-
     def _on_connect_timeout(self):
         with self.lock:
             self.sm.ConnectTimeout()
@@ -168,10 +176,12 @@ class Bond(object):
 
     def _on_heartbeat_timeout(self):
         # Checks that heartbeat timeouts haven't been disabled globally
-        disable_heartbeat_timeout = rospy.get_param(Constants.DISABLE_HEARTBEAT_TIMEOUT_PARAM, False)
+        disable_heartbeat_timeout = rospy.get_param(
+            Constants.DISABLE_HEARTBEAT_TIMEOUT_PARAM, False)
         if disable_heartbeat_timeout:
-            rospy.logwarn("Heartbeat timeout is disabled.  Not breaking bond (topic: %s, id: %s)" % \
-                              (self.topic, self.id))
+            rospy.logwarn(
+                "Heartbeat timeout is disabled.  Not breaking bond (topic: %s, id: %s)" %
+                (self.topic, self.id))
             return
 
         with self.lock:
@@ -207,9 +217,10 @@ class Bond(object):
                     self.sister_instance_id = msg.instance_id
 
                 if msg.instance_id != self.sister_instance_id:
-                    rospy.logerr("More than two locations are trying to use a single bond (topic: %s, id: %s).  " + \
-                                 "You should only instantiate at most two bond instances for each (topic, id) pair." % \
-                                     (self.topic, self.id))
+                    rospy.logerr(
+                        "More than two locations are trying to use a single bond (topic: %s, id: %s).  " +
+                        "You should only instantiate at most two bond instances for each (topic, id) pair." %
+                        (self.topic, self.id))
                     return
 
                 if msg.active:
@@ -221,8 +232,6 @@ class Bond(object):
                     if self.sister_died_first:
                         self._publish(False)
             self._flush_pending_callbacks()
-
-
 
     def _publish(self, active):
         msg = Status()
@@ -296,7 +305,7 @@ class Bond(object):
     #
     # \param timeout Maximum duration to wait.  If None then this call will not timeout.
     # \return true iff the bond has been formed.
-    def wait_until_formed(self, timeout = None):
+    def wait_until_formed(self, timeout=None):
         if self.deadline:
             self.deadline.cancel()
             self.deadline = None
@@ -318,7 +327,7 @@ class Bond(object):
     #
     # \param timeout Maximum duration to wait.  If None then this call will not timeout.
     # \return true iff the bond has been broken, even if it has never been formed.
-    def wait_until_broken(self, timeout = None):
+    def wait_until_broken(self, timeout=None):
         if self.deadline:
             self.deadline.cancel()
             self.deadline = None
@@ -349,6 +358,6 @@ class Bond(object):
             self._publish(False)
         self._flush_pending_callbacks()
 
-
     def __repr__(self):
-        return "[Bond %s, Instance %s (%s)]" % (self.id, self.instance_id, self.sm.getState().getName())
+        return "[Bond %s, Instance %s (%s)]" % \
+            (self.id, self.instance_id, self.sm.getState().getName())
